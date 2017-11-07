@@ -1,0 +1,52 @@
+% This file was created by matplotlib2tikz v0.6.13.
+\begin{tikzpicture}
+
+\begin{groupplot}[group style={group size=3 by 1}]
+\nextgroupplot[
+title={gammas},
+xlabel={$E_\mathrm{reco}$ / TeV},
+ylabel={gammaness},
+xmin=-2, xmax=2.5,
+ymin=0, ymax=1,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+x grid style={lightgray!92.026143790849673!black},
+y grid style={lightgray!92.026143790849673!black}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=-2, xmax=2.5, ymin=0, ymax=1] {\detokenize{pics/gammaness_vs_e_reco_wavelets7.png}};
+\nextgroupplot[
+title={protons},
+xlabel={$E_\mathrm{reco}$ / TeV},
+xmin=-2, xmax=2.5,
+ymin=0, ymax=1,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+x grid style={lightgray!92.026143790849673!black},
+y grid style={lightgray!92.026143790849673!black}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=-2, xmax=2.5, ymin=0, ymax=1] {\detokenize{pics/gammaness_vs_e_reco_wavelets8.png}};
+\nextgroupplot[
+title={electrons},
+xlabel={$E_\mathrm{reco}$ / TeV},
+xmin=-2, xmax=2.5,
+ymin=0, ymax=1,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+x grid style={lightgray!92.026143790849673!black},
+y grid style={lightgray!92.026143790849673!black},
+colorbar,
+colormap/viridis,
+point meta min=0,
+point meta max=1,
+colorbar style={ytick={0,0.2,0.4,0.6,0.8,1},yticklabels={0.0,0.2,0.4,0.6,0.8,1.0},ylabel={sqrt(event fraction per E-column)}}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=-2, xmax=2.5, ymin=0, ymax=1] {\detokenize{pics/gammaness_vs_e_reco_wavelets9.png}};
+\end{groupplot}
+
+\end{tikzpicture}

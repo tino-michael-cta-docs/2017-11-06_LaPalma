@@ -1,0 +1,75 @@
+% This file was created by matplotlib2tikz v0.6.13.
+\begin{tikzpicture}
+
+\begin{groupplot}[group style={group size=3 by 1}]
+\nextgroupplot[
+title={gamma},
+xlabel={$E_\mathrm{reco}$ / TeV},
+ylabel={$E_\mathrm{MC}$ / TeV},
+xmin=0.01, xmax=316.227766016838,
+ymin=0.01, ymax=316.227766016838,
+xmode=log,
+ymode=log,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+xmajorgrids,
+x grid style={lightgray!92.026143790849673!black},
+ymajorgrids,
+y grid style={lightgray!92.026143790849673!black}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=0.01, xmax=316.227766016838, ymin=0.01, ymax=316.227766016838] {\detokenize{pics/energy_migration_wavelets_img000.png}};
+\addplot [semithick, green!39.215686274509807!black, forget plot]
+table {%
+0.01 0.01
+316.227766016838 316.227766016838
+};
+\nextgroupplot[
+title={proton},
+xlabel={$E_\mathrm{reco}$ / TeV},
+xmin=0.01, xmax=316.227766016838,
+ymin=0.01, ymax=316.227766016838,
+xmode=log,
+ymode=log,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+xmajorgrids,
+x grid style={lightgray!92.026143790849673!black},
+ymajorgrids,
+y grid style={lightgray!92.026143790849673!black}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=0.01, xmax=316.227766016838, ymin=0.01, ymax=316.227766016838] {\detokenize{pics/energy_migration_wavelets_img001.png}};
+\addplot [semithick, green!39.215686274509807!black, forget plot]
+table {%
+0.01 0.01
+316.227766016838 316.227766016838
+};
+\nextgroupplot[
+title={electron},
+xlabel={$E_\mathrm{reco}$ / TeV},
+xmin=0.01, xmax=316.227766016838,
+ymin=0.01, ymax=316.227766016838,
+xmode=log,
+ymode=log,
+width=\figurewidth,
+height=\figureheight,
+tick align=outside,
+tick pos=left,
+xmajorgrids,
+x grid style={lightgray!92.026143790849673!black},
+ymajorgrids,
+y grid style={lightgray!92.026143790849673!black}
+]
+\addplot graphics [includegraphics cmd=\pgfimage,xmin=0.01, xmax=316.227766016838, ymin=0.01, ymax=316.227766016838] {\detokenize{pics/energy_migration_wavelets_img002.png}};
+\addplot [semithick, green!39.215686274509807!black, forget plot]
+table {%
+0.01 0.01
+316.227766016838 316.227766016838
+};
+\end{groupplot}
+
+
+\end{tikzpicture}

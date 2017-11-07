@@ -1,0 +1,261 @@
+\documentclass[8pt]{beamer}
+
+\usepackage[meeting={CTA Consortium Meeting},
+            date={La Palma, 2017-11-07},
+            title={first full sensitivity with the pipepline prototype},
+            shorttitle={ctapipe}]{beamersetup}
+
+\usepackage{wasysym}
+
+\begin{document}
+
+    \begin{frame}
+        \titlepage
+    \end{frame}
+
+
+    \begin{frame}{Array Layout}
+        \begin{columns}
+            \column{.6\textwidth}
+                \setlength{\figureheight}{\textwidth}
+                \setlength{\figurewidth}{\textwidth}
+                \input{pics/array_south_layout}
+            \column{.4\textwidth}
+                \begin{itemize}
+                    \item prod3b
+                    \item Paranal HB9 layout\\ (LST + Nectar + DigiCam)
+                    \item pointing north at \unit{20}{\degree}
+                    \item on-axis gammas,\\ diffuse protons and electrons
+                \end{itemize}
+        \end{columns}
+    \end{frame}
+
+
+    \begin{frame}{Cleaning}
+        \ \\
+        \vfill
+        \begin{columns}
+            \column{.5\textwidth}
+                \begin{itemize}
+                    \item[] comparing two cleaning methods:
+                    \item two-step tailcuts (implemented in ctapipe)
+                    \item wavelet cleaning developed by Jérémie\\
+                        (to be merged into ctapipe)\\\ %
+                \end{itemize}
+            \column{.5\textwidth}
+                \begin{itemize}
+                    \item[]
+                    \item run the pipeline separately once for each cleaning method
+                    \item i.e. each cleaning does its own ML training, reconstruction,
+                        discrimination ...
+                \end{itemize}
+        \end{columns}
+        \vfill
+        \includegraphics[width=\textwidth]{pics/camera_display_cleaning}
+    \end{frame}
+
+
+
+    \begin{frame}{Shower Reconstruction -- Direction}
+            {Angle between reconstructed and simulated direction}
+        \setlength{\figureheight}{4.5cm}
+        \setlength{\figurewidth}{10cm}
+        \centering
+        \input{pics/xi_gammaness.tex}
+    \end{frame}
+
+
+
+
+    \begin{frame}{Shower Reconstruction -- Shower Energy}
+                 {Machine learning}
+        \begin{itemize}
+            \item train 1 Random Decision Forest for each telescope type
+            \item follow a telescope-by-telescope approach
+            \medskip
+            \item then, for a given shower event, let the Forest estimate the energy from
+                every telescope separately and combine them into a single energy
+                estimator
+        \end{itemize}
+        \setlength{\figureheight}{4.5cm}
+        \setlength{\figurewidth}{4.5cm}
+        \input{pics/energy_migration_wavelets}
+    \end{frame}
+
+
+    \begin{frame}{Shower Reconstruction -- Shower Energy}
+        \setlength{\figureheight}{4.cm}
+        \setlength{\figurewidth}{4.5cm}
+        \input{pics/DeltaE_vs_recoE_wavelets_trigger}\\
+        \begin{columns}
+            \setlength{\figurewidth}{.5\textwidth}
+            \column{.5\textwidth}
+                \input{pics/Energy_resolution_vs_recoE_trigger}
+            \column{.5\textwidth}
+                \input{pics/Energy_bias_gamma_trigger}
+        \end{columns}
+    \end{frame}
+
+
+
+    \begin{frame}{Next Stop: Event Classification}
+        \setlength{\figureheight}{4.cm}
+        \setlength{\figurewidth}{4.5cm}
+        \begin{columns}
+            \column{.33\textwidth}
+                \input{\detokenize{pics/gammaness_wavelets_0.03_TeV_0.1_TeV_lin}}
+            \column{.33\textwidth}
+                \input{\detokenize{pics/gammaness_wavelets_0.1_TeV_1.0_TeV_lin}}
+            \column{.33\textwidth}
+                \input{\detokenize{pics/gammaness_wavelets_1.0_TeV_inf_TeV_lin}}
+        \end{columns}
+        \centering
+        \includegraphics[width=.9\textwidth]{pics/hadroness_abelardo}
+    \end{frame}
+
+
+
+    \begin{frame}{Full List of Features for RandomForest}
+        \begin{itemize}
+         \item impact\_dist - distance between telescope and reconstructed impact position
+         \item sum\_signal\_evt - total signal on all selected telescopes in the event
+         \item sum\_signal\_cam - total signal on the current camera
+         \item max\_signal\_cam - signal of the highest intensity pixel in the camera
+         \item N\_LST - number of selected LSTs in the event
+         \item N\_MST - number of selected MSTs in the event
+         \item N\_SST - number of selected SSTs in the event
+         \item Hillas width
+         \item Hillas length
+         \item Hillas skewness
+         \item Hillas kurtosis
+         \item h\_max - reconstructed height of shower maximum
+         \item err\_est\_pos - error estimator of the reconstructed impact position
+         \item err\_est\_dir - error estimator of the reconstructed shower direction
+        \end{itemize}
+
+
+    \end{frame}
+
+
+    \begin{frame}{Event Weights}
+        \begin{itemize}
+            \item next step: reweighting of MC events to correspond to expected physical
+                flux (e.g. Crab nebula for gammas, CR for protons)
+            \only<-2>{
+                \item simple binned approach:
+                    \begin{itemize}
+                        \item construct energy-binned selection efficiencies from MC
+                        \item apply these on the energy-binned histogram of expected
+                            \emph{arriving} events from the source
+                        \item \textrightarrow\ get the number of expected selected events
+                    \end{itemize}
+                \only<2>{
+                    \item \textbf{but:} it's binned... not optimal (but implemented anyway)
+                }
+            }
+            \only<3>{
+                \item instead: event-by-event weight that considers the generator
+                    spectrum:
+                \item $w(E) = A_\mathrm{gen} \times I_\Theta \times E^\gamma \times I_E
+                    \times T_\mathrm{obs}/ N_\mathrm{gen}$\\ with:
+                    \begin{itemize}
+                        \item $A_\mathrm{gen}$: MC generator Area
+                        \item $I_\Theta = 2 \pi (1-\cos\vartheta)$: angular phase space
+                            factor for diffuse flux
+                        \item $E^\gamma$: considers that MC events have been drawn with an
+                            $E^{-2}$ spectrum
+                        \item $\gamma$: spectral index of the MC generator (here equal 2)
+                        \item $I_E =
+                            (E_\mathrm{max}^{(1-\gamma)} - E_\mathrm{min}^{(1-\gamma)})
+                            / (1-\gamma)$: energy phase space factor
+                        \item $T_\mathrm{obs}$: assumed observation time
+                        \item $N_\mathrm{gen}$: number of generated MC events
+                    \end{itemize}
+                \item $w(E) \times \varPhi(E)$ gives weight for every MC event so that
+                    their energy distribution looks like the selected events from the
+                    assumed flux $\varPhi$
+            }
+        \end{itemize}
+    \end{frame}
+
+
+
+    \begin{frame}{Effective Areas}{after reconstruction}
+        \centering
+        \setlength{\figureheight}{7cm}
+        \setlength{\figurewidth}{.75\textwidth}
+        \input{pics/effective_areas_wavelets}
+
+    \end{frame}
+
+
+    \begin{frame}{Quality cuts}
+        \begin{itemize}
+            \item energy-binned finding cuts to minimise sensitivity
+            \item numerical fit simultaneous in gammaness and direction error
+            \item $N_\gamma > 10$ and $N_\gamma > 0.05 * (N_\mathrm{p} + N_\mathrm{e})$
+                taken into account
+        \end{itemize}
+
+        \centering
+        \includegraphics[width=.9\textwidth]{pics/cuts_vs_E_wave}
+
+    \end{frame}
+
+
+    \begin{frame}{Event Rates}
+        {after gammaness only cut / after gammaness + theta cut}
+        \begin{columns}
+            \setlength{\figureheight}{7.cm}
+            \setlength{\figurewidth}{.5\textwidth}
+            \column{.5\textwidth}
+                \input{pics/event_rate_gammaness}
+            \column{.5\textwidth}
+                \input{pics/event_rate_theta}
+        \end{columns}
+
+    \end{frame}
+
+
+    \begin{frame}{on-axis point-source Sensitivity}
+        \setlength{\figureheight}{6.5cm}
+        \setlength{\figurewidth}{.85\textwidth}
+        \centering
+        \input{pics/sensitivity}
+        \setlength{\figureheight}{3.5cm}
+        \input{pics/sensitivity_ratio}
+
+    \end{frame}
+
+
+
+    \begin{frame}{Summary}
+        \begin{itemize}
+            \item ctapipe can produce sensitivity curves
+            \item wavelets outperforms tailcuts
+            \begin{itemize}
+                \item angular resolution: 30 \% -- 80 \%
+                \item effective area: 100 \%
+                \item sensitivity: 100 \% -- 200 \%
+            \end{itemize}
+            \item gain over reference at low energies very large
+            \item maybe still normalisation problem?
+            \item will investigate further
+
+        \end{itemize}
+
+    \end{frame}
+
+\end{document}
+
+
+
+
+
+    \backup[hide]{
+        \frame{
+            not shown
+        }
+    }
+
+\end{document}

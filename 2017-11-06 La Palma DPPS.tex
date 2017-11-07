@@ -1,0 +1,537 @@
+\documentclass[8pt]{beamer}
+
+\usepackage[meeting={CTA Consortium Meeting},
+            date={La Palma, 2017-11-06},
+            title={The CTA pipepline prototype},
+            shorttitle={ctapipe}]{beamersetup}
+
+\usepackage{wasysym}
+
+\begin{document}
+
+    \begin{frame}
+        \titlepage
+    \end{frame}
+
+
+
+    \begin{frame}{Introduction}
+        \begin{itemize}
+            \item[] the whole pipeline is up and running; cover here:
+            \item image cleaning (tailcuts vs. wavelets)
+            \item shower direction and impact reconstruction (purely geometric approach)
+            \item $h_\mathrm{max}$ estimate (numerical minimisation in 3D)
+            \item energy reconstruction (machine learning)
+            \item event discrimination (machine learning)
+            \item point-source sensitivity
+            \item[]
+            \item my github: \url{https://github.com/tino-michael/tino_cta}
+            \item still needs external libraries for wavelet cleaning
+        \end{itemize}
+
+    \end{frame}
+
+
+    \begin{frame}{Array Layout}
+        \begin{columns}
+            \column{.6\textwidth}
+                \setlength{\figureheight}{\textwidth}
+                \setlength{\figurewidth}{\textwidth}
+                \input{pics/array_south_layout}
+            \column{.4\textwidth}
+                \begin{itemize}
+                    \item until recently, only running on ASTRI mini-array
+                    \item now on full Paranal array:
+                    \item HB9 layout\\ (LST + Nectar + DigiCam)
+                    \item pointing north at \unit{20}{\degree}
+                    \item on-axis gammas,\\ diffuse protons and electrons
+                \end{itemize}
+        \end{columns}
+    \end{frame}
+
+
+    \begin{frame}{Cleaning}
+        \ \\
+        \vfill
+        \begin{columns}
+            \column{.5\textwidth}
+                \begin{itemize}
+                    \item[] comparing two cleaning methods:
+                    \item two-step tailcuts (implemented in ctapipe)
+                    \item wavelet cleaning developed by Jérémie\\
+                        (to be merged into ctapipe)\\\ %
+%                     \item[]
+                \end{itemize}
+            \column{.5\textwidth}
+                \begin{itemize}
+                    \item[]
+                    \item run the pipeline separately once for each cleaning method
+                    \item i.e. each cleaning does its own ML training, reconstruction,
+                        discrimination ...
+                \end{itemize}
+        \end{columns}
+        \vfill
+        \includegraphics[width=\textwidth]{pics/camera_display_cleaning}
+    \end{frame}
+
+
+    \begin{frame}{simple shower-reco}{camera frame}
+        \begin{columns}
+            \column{.5\textwidth}
+                \begin{itemize}
+                    \item Hillas parametrisation provides several parameters:
+                    \begin{itemize}
+                        \item position of image core {\color{blue}$c$}
+                        \item tilt of ellipsis $\psi$
+                    \end{itemize}
+                    \item $\rightarrow$ arbitrary point {\color{red}$b$} on shower axis
+                    \item note that every pixel on the camera corresponds to a direction in the sky
+                    \item $b$ and $c$ form a plane in which the shower lies
+                \end{itemize}
+
+            \column{.5\textwidth}
+                \centering
+                \begin{tikzpicture}
+                    \node[base=center] (0,0) {\includegraphics[trim=4cm 4cm 22.8cm 13cm, clip, width=4.5cm]{pics/display.pdf}};
+                    \coordinate (shmax) at (.8,.4);
+
+                    \draw[thick,white] (1.5,0) arc (0:25:1.5) node [midway,left,white] {$\psi$};
+
+                    \foreach \P in {(shmax)}{\draw[mark options={color=blue!100!black},mark size=2.402402pt,very thick,mark=star] plot coordinates {\P} node[color=blue!50!white,shift=(120:.2)] {$c$};}
+                    \foreach \P in {(25:1.5)}{\draw[mark options={color=red!100!black},mark size=2.402402pt,very thick,mark=star] plot coordinates {\P} node[color=red!50!white,shift=(120:.2)] {$b$};}
+                    \draw[thick,white,-stealth] (0,0) -- +(25:1.8);
+                \end{tikzpicture}
+        \end{columns}
+    \end{frame}
+
+
+
+    \begin{frame}{simple shower-reco -- direction}{horizontal frame}
+        \centering
+        \begin{tikzpicture}
+            \draw[-stealth] (.5,.5) -- +(5mm,0) node[below] {$x$};
+            \draw[-stealth] (.5,.5) -- +(60:3.5mm) node[right] {$y$};
+            \draw[-stealth] (.5,.5) -- +(0,5mm) node[left] {$z$};
+            \draw[color=white] (0,0) rectangle (10,7);
+            \coordinate (tel1) at (2,1);
+            \draw[black,fill] (tel1) circle (.05) node[below] {Tel 1};
+            \only<1->{
+                \coordinate (a2) at ([yshift=3cm]tel1);
+                \coordinate (a3) at ([xshift=6cm,yshift=1.5cm]a2);
+                \coordinate (a4) at ([yshift=-3cm]a3);
+                \draw[line width=0.3mm] (tel1) -- (a2) -- (a3) -- (a4) -- (tel1);
+            }
+            \only<2->{
+                \coordinate (tel2) at (8.5,1);
+                \draw[black,fill] (tel2) circle (.05) node[below] {Tel 2};
+                \coordinate (b2) at ([yshift=3cm]tel2);
+                \coordinate (b3) at ([xshift=-6cm,yshift=1.5cm]b2);
+                \coordinate (b4) at ([yshift=-3cm]b3);
+                \draw[line width=0.3mm] (tel2) -- (b2) -- (b3) -- (b4) -- (tel2);
+
+                \path[name path=line1low] (tel1) -- (a4);
+                \path[name path=line1hig] (a2) -- (a3);
+                \path[name path=line2low] (tel2) -- (b4);
+                \path[name path=line2hig] (b2) -- (b3);
+
+                \path[name intersections={of = line1low and line2low}];
+                \coordinate (sel12low) at (intersection-1);
+                \path[name intersections={of = line1hig and line2hig}];
+                \coordinate (sel12hig) at (intersection-1);
+                \draw[line width=.7mm] (sel12hig) -- (sel12low);
+            }
+            \only<3>{
+                \draw[thick,-stealth,shorten >=.1cm]
+                    (8,6.2) -- ( $(sel12hig) !.3! (sel12low)$ );
+                \node[anchor=south east] at (10,6.25)
+                    {orientation of this cross section is the shower direction!};
+            }
+            \only<4->{
+                \coordinate (tel3) at (7,3);
+                \draw[black,fill] (tel3) circle (.05) node[right] {Tel 3};
+                \coordinate (c2) at ([yshift=3cm]tel3);
+                \coordinate (c3) at ([xshift=-4cm,yshift=-2.2cm]c2);
+                \coordinate (c4) at ([yshift=-3cm]c3);
+                \draw[line width=0.3mm] (tel3) -- (c2) -- (c3) -- (c4) -- (tel3);
+
+                \path[name path=line3low] (tel3) -- (c4);
+                \path[name path=line3hig] (c2) -- (c3);
+
+                \path[name intersections={of = line1low and line3low}];
+                \coordinate (sel13low) at (intersection-1);
+                \path[name intersections={of = line1hig and line3hig}];
+                \coordinate (sel13hig) at (intersection-1);
+                \draw[line width=.7mm] (sel13hig) -- (sel13low);
+
+                \path[name intersections={of = line2low and line3low}];
+                \coordinate (sel23low) at (intersection-1);
+                \path[name intersections={of = line2hig and line3hig}];
+                \coordinate (sel23hig) at (intersection-1);
+                \draw[line width=.7mm] (sel23hig) -- (sel23low);
+                \node[anchor=south east] at (10,6.25)
+                    {more cross sections means more direction estimators};
+            }
+        \end{tikzpicture}
+    \end{frame}
+
+
+    \begin{frame}{weighted mean direction of intersections}{implementation}
+        \begin{itemize}
+            \item this cross section is perpendicular to the normal direction of both
+                intersecting planes ($\vec n = \vec b \times \vec c$)
+            \item $\rightarrow$ shower direction is $\vec n_1 \times \vec n_2$
+            \item add up all cross products for weighted mean direction:
+                $$\vec d_\gamma = \sum_{i=1}^{N_\mathrm{Tels}}
+                \sum_{j=i+1}^{N_\mathrm{Tels}} w_{ij} \cdot \vec n_i \times \vec n_j$$
+            \item $w_{ij}$: weight containing the total image intensity\\
+                and eccentricity of the Hillas ellipsis
+            \item note: $|\vec n_i \times \vec n_j| = |\vec n_i| \cdot |\vec n_j| \cdot
+                \sin[ \measuredangle(\vec n_i, \vec n_j )]$
+            \item[] $\rightarrow$ automatically weights contributions according\\
+                to the angle between intersecting planes
+            \item[] $\rightarrow$ planes pairs crossing with more acute angle are
+                weighted less
+        \end{itemize}
+    \end{frame}
+
+
+    \begin{frame}{Shower Reconstruction -- Direction}
+            {Angle between reconstructed and simulated direction}
+        \setlength{\figureheight}{4.5cm}
+        \setlength{\figurewidth}{10cm}
+        \centering
+        \input{pics/ang_res_verbose.tex}
+
+    \end{frame}
+
+
+
+    \begin{frame}{simple shower-reco -- impact position}{horizontal frame}
+        \centering
+        \begin{tikzpicture}
+            \draw[-stealth] (.5,.5) -- +(5mm,0) node[below] {$x$};
+            \draw[-stealth] (.5,.5) -- +(60:3.5mm) node[right] {$y$};
+            \draw[-stealth] (.5,.5) -- +(0,5mm) node[left] {$z$};
+            \draw[color=white] (0,0) rectangle (10,7);
+            \coordinate (tel1) at (2,1);
+            \coordinate (tel2) at (8.5,1);
+            \coordinate (tel3) at (7,3);
+            \draw[black,fill] (tel1) circle (.05) node[below] {Tel 1};
+            \draw[black,fill] (tel2) circle (.05) node[below] {Tel 2};
+            \draw[black,fill] (tel3) circle (.05) node[right] {Tel 3};
+
+            \coordinate (a2) at ([yshift=3cm]tel1);
+            \coordinate (a3) at ([xshift=6cm,yshift=1.5cm]a2);
+            \coordinate (a4) at ([yshift=-3cm]a3);
+
+
+                \coordinate (b2) at ([yshift=3cm]tel2);
+                \coordinate (b3) at ([xshift=-6cm,yshift=1.5cm]b2);
+                \coordinate (b4) at ([yshift=-3cm]b3);
+
+
+                \coordinate (c2) at ([yshift=3cm]tel3);
+                \coordinate (c3) at ([xshift=-4cm,yshift=-2.2cm]c2);
+                \coordinate (c4) at ([yshift=-3cm]c3);
+
+
+                \path[name path=line1low] (tel1) -- (a4);
+                \path[name path=line1hig] (a2) -- (a3);
+                \path[name path=line2low] (tel2) -- (b4);
+                \path[name path=line2hig] (b2) -- (b3);
+
+                \path[name intersections={of = line1low and line2low}];
+                \coordinate (sel12low) at (intersection-1);
+                \path[name intersections={of = line1hig and line2hig}];
+                \coordinate (sel12hig) at (intersection-1);
+
+                \path[name path=line3low] (tel3) -- (c4);
+                \path[name path=line3hig] (c2) -- (c3);
+
+                \path[name intersections={of = line1low and line3low}];
+                \coordinate (sel13low) at (intersection-1);
+                \path[name intersections={of = line1hig and line3hig}];
+                \coordinate (sel13hig) at (intersection-1);
+
+
+                \path[name intersections={of = line2low and line3low}];
+                \coordinate (sel23low) at (intersection-1);
+                \path[name intersections={of = line2hig and line3hig}];
+                \coordinate (sel23hig) at (intersection-1);
+
+            \only<1>{
+                \draw[line width=0.3mm] (tel1) -- (a2) -- (a3) -- (a4) -- (tel1);
+                \draw[line width=0.3mm] (tel2) -- (b2) -- (b3) -- (b4) -- (tel2);
+                \draw[line width=0.3mm] (tel3) -- (c2) -- (c3) -- (c4) -- (tel3);
+                \draw[line width=.7mm] (sel12hig) -- (sel12low);
+                \draw[line width=.7mm] (sel13hig) -- (sel13low);
+                \draw[line width=.7mm] (sel23hig) -- (sel23low);
+            }
+            \only<2->{
+                \draw[opacity=.25,line width=0.3mm] (tel1) -- (a2) -- (a3) -- (a4) -- (tel1);
+                \draw[opacity=.25,line width=0.3mm] (tel2) -- (b2) -- (b3) -- (b4) -- (tel2);
+                \draw[opacity=.25,line width=0.3mm] (tel3) -- (c2) -- (c3) -- (c4) -- (tel3);
+
+                \draw[line width=0.3mm] (a4) -- (tel1);
+                \draw[line width=0.3mm] (b4) -- (tel2);
+                \draw[line width=0.3mm] (c4) -- (tel3);
+                \draw[black,fill] (sel12low) circle (.05);
+                \draw[black,fill] (sel13low) circle (.05);
+                \draw[black,fill] (sel23low) circle (.05);
+            }
+            \only<3>{
+                \draw[thick,stealth-] ([xshift=2.5mm,yshift=5mm]sel13low) -- +(-2.,3.8);
+                \node[anchor=south west] at (1,6) {solve with linear least square
+%                                                    (see slide~\ref{backup:impact})
+                };
+            }
+        \end{tikzpicture}
+    \end{frame}
+
+
+    \begin{frame}{linear least square for impact position}
+        For any point $\vec r$ on a line $i$ holds
+        $$\vec n_i \cdot \vec r = \vec n_i \cdot \vec p_i = d_i $$
+        with $n_i$, the lines normal vector and $\vec p_i$, a fixed point on the line
+        (e.g. the telescope position)\\
+        If $\vec r$ lies on several lines simultaneously, we can write:
+
+        $$
+        \begin{pmatrix}
+            n^x_1  & n^y_1  \\
+            \vdots & \vdots \\
+            n^x_m  & n^y_m
+        \end{pmatrix} \cdot \vec r =
+        \begin{pmatrix}
+            \vec n_1 \cdot \vec p_i \\
+                \vdots \\
+            \vec n_m \cdot \vec p_m
+        \end{pmatrix} =
+        \begin{pmatrix}
+            d_1    \\
+            \vdots \\
+            d_m
+        \end{pmatrix}
+        $$
+        or $\mathbf{A} \cdot \vec r = \vec d$. \\
+        If all lines $i$ do not cross in one single point $\vec r$, there won't be a solution for this equation system.\\
+        The ``optimal'' solution can still be found with least linear squares:\\
+        $$\vec r_{\chi^2} = (\mathbf{A}^\mathrm{T} \cdot \mathbf{A})^{-1} \cdot \mathbf{A}^\mathrm{T} \cdot \vec d$$
+
+    \end{frame}
+
+
+    \begin{frame}{simple shower-reco -- $h_\mathrm{max}$}
+        \begin{columns}
+            \column{.5\textwidth}
+                \begin{tikzpicture}
+                    \node[xscale=-1] (show) at (0,0)
+                        {\includegraphics[trim=16cm 0 3cm 0,clip,width=\textwidth]
+                        {pics/CTA_array_at_night_withtwoshower_small}};
+
+                    \begin{scope}
+                    \clip ([xshift=.5cm,yshift=1.25cm]show.south east)
+                        ++(90:1.5) arc (90:-45:1.5) -- ++(-1.06cm,0);
+
+                    \node[anchor=south west] (img) at
+                        ([xshift=0cm,yshift=.5cm]show.south east)
+                        {\includegraphics[trim=5.5cm 5cm 22.8cm 13cm, clip, width=2cm]
+                        {pics/display.pdf}};
+                    \end{scope}
+                    \coordinate (shmax) at ([xshift=1cm,yshift=1cm]img.south west);
+                    \foreach \P in {(shmax)}{\draw[mark options={color=blue!100!black},
+                    mark size=2.402402pt,very thick,mark=star] plot coordinates {\P}
+                    node[color=blue!50!white,shift=(120:.2)] {$c$};}
+
+                    \coordinate (shmax_sky) at ([xshift=.275cm,yshift=-1.1cm]show.north);
+                    \foreach \P in {(shmax_sky)}{\draw[mark options={color=blue!100!black},
+                    mark size=2.402402pt,very thick,mark=star] plot coordinates {\P};}
+%                     node[color=blue!50!white,shift=(30:.3)] {$c'$};}
+
+                    \draw[dashed,shorten >=-.75cm,lightgray,-stealth]
+                        (shmax) -- (shmax_sky);
+                \end{tikzpicture}
+            \column{.45\textwidth}
+                \begin{itemize}
+                    \item project the core position of the Hillas ellipsis
+                        (vector $\vec c$ from direction reco) as a line into the sky
+                    \item find the point that minimises the average distance to
+                        lines from all telescopes
+                    \item no unambiguous normal parametrisation of a line in $\mathbb{R}^3$
+                        \frownie
+                    \item need to use numeric minimiser after all
+                \end{itemize}
+
+        \end{columns}
+    \end{frame}
+
+
+
+    \begin{frame}{Shower Reconstruction -- Shower Energy}
+                 {Machine learning}
+        \begin{itemize}
+            \item train 1 Random Decision Forest for each telescope type
+            \item follow a telescope-by-telescope approach
+            \item training features include: Hillas length/width/higher moments,
+                number of telescopes (per size), signal on telescope,
+                summed signal on all triggered telescopes, distance between telescope,
+                shower impact, error estimators, ...
+            \medskip
+            \item then, for a given shower event, let the Forest estimate the energy from
+                every telescope separately and combine them into a single energy
+                estimator
+        \end{itemize}
+        \setlength{\figureheight}{4.5cm}
+        \setlength{\figurewidth}{4.5cm}
+%         \input{pics/DeltaE_vs_recoE_wavelets}
+        \input{pics/energy_migration_wavelets}
+    \end{frame}
+
+
+    \begin{frame}{Next Stop: Event Classification}
+        \begin{columns}
+                \column{.45\textwidth}
+
+        \begin{itemize}
+            \item Protons pose major background
+            \item Event rate about $10^5$ times above Photons
+            \item Training Random Forest Classifier
+            \item (virtually identical to energy estimation)
+        \end{itemize}
+            \column{.575\textwidth}
+        \setlength{\figureheight}{7cm}
+        \setlength{\figurewidth}{\textwidth}
+%         \input{pics/gammaness_vs_e_reco_wavelets}
+%         \input{\detokenize{pics/gammaness_wavelets_0.03_TeV_0.1_TeV}}
+        \input{\detokenize{pics/gammaness_wavelets_0.1_TeV_1.0_TeV}}
+%         \input{\detokenize{pics/gammaness_wavelets_1.0_TeV_inf_TeV}}
+        \end{columns}
+    \end{frame}
+
+
+    \begin{frame}{DIRAC}{a.k.a. ``The GRID''}
+        \begin{itemize}
+            \item all this runs with DIRAC on the GRID (including wavelet cleaning)
+            \item lots of sweat, blood and tears to get it going
+            \item Big thanks to Johan and Luisa  to take care of
+                the many tickets that I open all the time!
+                \bigskip
+            \item processing a single setup (5k gamma and electron files, 40k
+                proton files) takes about a week per cleaning mode
+                \bigskip
+            \item take a look at my \href{https://github.com/tino-michael/tino_cta/blob/
+                master/dirac_submit.py}{\textbf{dirac\_submit.py}} submit-script
+                (handles also some book keeping)
+        \end{itemize}
+        \vfill
+        \centering
+        \includegraphics[height=2.5cm]{pics/DIRAC_monitor}
+
+    \end{frame}
+
+
+%
+%     \begin{frame}{Thoughts on Event Weights}
+%         \begin{itemize}
+%             \item next step: reweighting of MC events to correspond to expected physical
+%                 flux (e.g. Crab nebula)
+%             \only<2,3>{
+%                 \item simple binned approach:
+%                     \begin{itemize}
+%                         \item construct energy-binned selection efficiencies from MC
+%                         \item apply these on the energy-binned histogram of expected
+%                             \emph{arriving} events from the source
+%                         \item \textrightarrow\ get the number of expected selected events
+%                     \end{itemize}
+%                 \only<3>{
+%                     \item \textbf{but:} it's binned... not optimal (but implemented anyway)
+%                 }
+%             }
+%             \only<4->{
+%                 \item instead: event-by-event weight that considers the generator
+%                     spectrum:
+%                 \item $w(E) = A_\mathrm{gen} \times I_\Theta \times E^\gamma \times I_E
+%                     \times T_\mathrm{obs}/ N_\mathrm{gen}$\\ with:
+%                     \begin{itemize}
+%                         \item $A_\mathrm{gen}$: MC generator Area
+%                         \item $I_\Theta = 2 \pi (1-\cos\vartheta)$: angular phase space
+%                             factor for diffuse flux
+%                         \item $E^\gamma$: considers that MC events have been drawn with an
+%                             $E^{-2}$ spectrum
+%                         \item $\gamma$: spectral index of the MC generator (here equal 2)
+%                         \item $I_E =
+%                             (E_\mathrm{max}^{(1-\gamma)} - E_\mathrm{min}^{(1-\gamma)})
+%                             / (1-\gamma)$: energy phase space factor
+%                         \item $T_\mathrm{obs}$: assumed observation time
+%                         \item $N_\mathrm{gen}$: number of generated MC events
+%                     \end{itemize}
+%                 \item $w(E) \times \varPhi(E)$ gives weight for every MC event so that
+%                     their energy distribution looks like the selected events from the
+%                     assumed flux $\varPhi$
+%             }
+%         \end{itemize}
+%     \end{frame}
+%
+%
+%     \begin{frame}{Detected (weighted) Events}
+%         \ \\
+%         \centering
+%         \input{pics/expected_events_trigger}
+%
+%     \end{frame}
+%
+%
+%     \begin{frame}{Point-Source Sensitivity}
+%         defined as the minimum flux necessary to generate sufficient events in a bin to
+%         claim a $5\sigma$ excess according to Li-Ma\\
+%         \centering
+%         \input{pics/sensitivity_dummy}
+%
+%     \end{frame}
+
+
+    \begin{frame}{Effective Areas}{after reconstruction}
+        \centering
+        \setlength{\figureheight}{7cm}
+        \setlength{\figurewidth}{.75\textwidth}
+        \input{pics/effective_areas_reco}
+
+    \end{frame}
+
+
+
+
+    \begin{frame}{Summary}
+        \begin{itemize}
+            \item data pipeline from reading of the MC files to IRFs and differential
+                sensitivity fully implemented
+            \item (almost) completely written in python
+            \item many things unmentioned (pyhessio, camera calibration, ImPACT,
+                muon reconstruction, ...)
+            \item still ``one or two'' things to do
+
+            \bigskip
+            \item image cleaning with wavelet outperforms two-stage tailcuts:\\
+                better angular/position resolution, better acceptance, better sensitivity
+            \item will show more of that tomorrow at ASWG session
+
+        \end{itemize}
+
+    \end{frame}
+
+
+
+    \backup[hide]{
+        \frame{
+            not shown
+        }
+    }
+
+\end{document}
+
+
+• effective area after reconstruction + 68 % PSF
+• what is missing? / experience of problems
+  • data format
+  • database access
+  • coordinate robust
